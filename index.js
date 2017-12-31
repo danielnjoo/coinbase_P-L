@@ -3,11 +3,11 @@ var bodyParser = require('body-parser')
 
 var coinbase = require('coinbase');
 var Client = coinbase.Client;
-var client = new Client({'apiKey': '__', 'apiSecret': '__'});
+var client = new Client({'apiKey': '___', 'apiSecret': '___'});
 var moment = require("moment");
 var https = require('https');
 
-var accountIDs = ['__', '__']
+var accountIDs = [___,____]
 
 // var accountIDs = []
 //
@@ -133,14 +133,24 @@ var pAndL = currency => {
       var dates = getDates(start, end);
 
       // get price info for every day from start to today - 1 (since it only gets end of day data)
-      var url = [
-        'https://api.coindesk.com/v1/bpi/historical/close.json?start=',
-        moment(start).format("YYYY-MM-DD"),
-        '&end=',
-        moment(end).format("YYYY-MM-DD")
-      ]
+      if (currency=="BTC"){
+        var url = [
+          'https://api.coindesk.com/v1/bpi/historical/close.json?start=',
+          moment(start).format("YYYY-MM-DD"),
+          '&end=',
+          moment(end).format("YYYY-MM-DD")
+        ]
+      } else if (currency == "ETH"){
+        var url = [
+          'https://api.coindesk.com/v1/bpi/historical/close.json?start=',
+          moment(start).format("YYYY-MM-DD"),
+          '&end=',
+          moment(end).format("YYYY-MM-DD")
+        ]
+      }
 
-      // var prices = Object.values(Object.values([]))
+
+      var BTC_prices = Object.values(Object.values([]))
 
       https.get(url.join(''), res => {
         res.setEncoding("utf8");
@@ -151,11 +161,43 @@ var pAndL = currency => {
         res.on("end", () => {
           body = JSON.parse(body);
 
-          prices = Object.values(Object.values(body)[0]);
+          BTC_prices = Object.values(Object.values(body)[0]);
 
-          for (var i = 0; i<=dates.length; i++) {
-            bal.push({'date': dates[i], 'price': prices[i], 'coin_bal': 0, 'currency_in': 0, 'currency_out': 0});
+          if (currency == "BTC") {
+            for (var i = 0; i<=dates.length; i++) {
+              bal.push({'date': dates[i], 'price': BTC_prices[i], 'coin_bal': 0, 'currency_in': 0, 'currency_out': 0});
+            }
+          } else if (currency == "ETH") {
+            var eth_url = [
+              'https://poloniex.com/public?command=returnChartData&currencyPair=BTC_ETH&start=',
+              moment(start).unix(),
+              '&end=',
+              moment(end).unix(),
+              '&period=86400'
+            ]
+            // console.log(eth_url.join(''));
+
+            https.get(eth_url.join(''), res => {
+              res.setEncoding("utf8");
+              let body = "";
+              res.on("data", data => {
+                body += data;
+              });
+              res.on("end", () => {
+                // eth prices in terms of BTC, 4 hour intervals
+                body = JSON.parse(body);
+                // console.log(dates.length)
+
+                for (var i = 0; i<=dates.length-1; i++) {
+                  // console.log('i',i,'date', body[i].date, 'BTC_ETH', body[i].close, "BTC price", BTC_prices[i], "ETH_USD", body[i].close * BTC_prices[i])
+                  bal.push({'date': dates[i], 'price': body[i].close * BTC_prices[i], 'coin_bal': 0, 'currency_in': 0, 'currency_out': 0});
+                }
+              })
+            })
+
+
           }
+
 
         });
       });
@@ -203,7 +245,7 @@ var dataReformat = (data) => {
     return [parseInt(moment.utc(entry.date).format('x')), entry.coin_bal]
   })
   var series2 = data.map((entry)=>{
-    return [parseInt(moment.utc(entry.date).format('x')),  entry.currency_out - entry.currency_in ]
+    return [parseInt(moment.utc(entry.date).format('x')), entry.currency_out - entry.currency_in ]
   })
   var series3 = data.map((entry)=>{
     return [parseInt(moment.utc(entry.date).format('x')), entry.coin_bal *  entry.price]
