@@ -6,9 +6,20 @@
    </head>
 <body>
   <div id="container"></div>
+
+  <form method="POST" action="/">
+    <select name="currency">
+      <option value="BTC">BTC</option>
+      <option value="ETH">ETH</option>
+    </select>
+    <br><br>
+    <input type="submit">
+  </form>
+
   <script>
     Highcharts.chart('container', {
             chart: {zoomType: 'x'},
+            colors: ['#0000FF', '#0066FF', '#00CCFF'],
             title: {text: 'Coinbase Profit and Loss visualizer'},
             subtitle: {
                 text: document.ontouchstart === undefined ?
@@ -17,22 +28,18 @@
             xAxis: {type: 'datetime'},
             yAxis: [
                 {
-                  // lineWidth: 1,
                   title: {
                     text: 'Profit/Loss'
                   }
                 },
                 {
-                  // lineWidth: 1,
                   opposite: true,
                   title: {
                       text: 'Coin Balance'
                   }
                 }
             ],
-            legend: {
-                enabled: false
-            },
+            legend: {enabled: false},
             plotOptions: {
                 area: {
                     fillColor: {
@@ -48,9 +55,9 @@
                         ]
                     },
                     marker: {
-                        radius: 2
+                        radius: 4
                     },
-                    lineWidth: 1,
+                    lineWidth: 2,
                     states: {
                         hover: {
                             lineWidth: 1
@@ -59,25 +66,27 @@
                     threshold: null
                 }
             },
-
             series: [{
                 type: 'area',
-                name: 'coin_bal',
+                name: 'Coin Balance',
                 data: <%= series1 %>,
                 yAxis: 1
             },
             {
                 type: 'area',
-                name: 'pAndL',
+                name: 'Realized Profit/Loss',
                 data: <%= series2 %>
-
-            }]
+            },
+            {
+                type: 'area',
+                name: 'Unrealized Profit/Loss',
+                data: <%= series3 %>
+            }
+          ]
         });
     </script>
 
-
-
-  <!-- <p><%= series1 %></p> -->
+  <p>“Prices powered by <a href="https://www.coindesk.com/price/">CoinDesk</a>”</p>
 
 
 </body>
