@@ -3,9 +3,28 @@ var bodyParser = require('body-parser')
 
 var coinbase = require('coinbase');
 var Client = coinbase.Client;
-var client = new Client({'apiKey': '____', 'apiSecret': '____'});
+var client = new Client({'apiKey': '__', 'apiSecret': '__'});
 var moment = require("moment");
 var https = require('https');
+
+var accountIDs = ['__', '__']
+
+// var accountIDs = []
+//
+// client.getAccounts({}, (err, accounts) => {
+//   if (err) console.log(err)
+//   accounts.forEach((acct) => {
+//     client.getAccount(acct.id, function(err, account) {
+//       accountIDs.push({'currency': account.balance.currency, 'id': account.id})
+//       // accountIDs[account.balance.currency] = account.id
+//       // console.log('currency: ', account.balance.currency, 'id: ',account.id);
+//       console.log(accountIDs)
+//     });
+//     // console.log(accountIDs)
+//   })
+// });
+// // console.log(accountIDs)
+
 
 
 var bal = [];
@@ -90,8 +109,20 @@ var getDates = (startDate, stopDate) => {
   return result;
 }
 
+
 // given an account ID, update bal
-var pAndL = id => {
+var pAndL = currency => {
+  var id = '';
+
+  // get account ID given desired currency
+  if (currency == 'BTC') {
+     id = accountIDs[0]
+  } else if (currency == 'ETH') {
+    id = accountIDs[1]
+  }
+
+  console.log(id)
+
   return new Promise((resolve, reject) => {
     getTxs(id).then(txs => {
       var len = Object.keys(txs).length;
@@ -163,16 +194,7 @@ var pAndL = id => {
   })
 }
 
-// client.getAccounts({}, (err, accounts) => {
-//   if (err) console.log(err)
-//   accounts.forEach((acct) => {
-//     client.getAccount(acct.id, function(err, account) {
-//       // console.log('bal: ' + account.balance.amount + ' currency: ' + account.balance.currency);
-//       console.log(account.id);
-//     });
-//     // if (acct.currency=="BTC")  pAndL(acct.id);
-//   })
-// });
+
 
 var dataReformat = (data) => {
   // array of objects with 5 keys to 2 arrays
@@ -199,7 +221,7 @@ app.set('view engine', 'ejs');
 
 app.get('/', async (req, res, next) => {
   try {
-    const data = await pAndL('____');
+    const data = await pAndL('BTC');
     const input = dataReformat(data)
     res.render('home', {
       series1: JSON.stringify(input[0]),
@@ -211,10 +233,18 @@ app.get('/', async (req, res, next) => {
   }
 })
 
-app.post('/', (req, res) => {
+app.post('/', async (req, res) => {
   try {
     console.log(req.body);
-
+    if (req.body.currency=="ETH"){
+      const data = await pAndL('ETH');
+      const input = dataReformat(data)
+      res.render('home', {
+        series1: JSON.stringify(input[0]),
+        series2: JSON.stringify(input[1]),
+        series3: JSON.stringify(input[2])
+      });
+    }
   } catch (e) {
     console.log("error")
   }
