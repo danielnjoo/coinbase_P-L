@@ -3,31 +3,24 @@ var bodyParser = require('body-parser')
 
 var coinbase = require('coinbase');
 var Client = coinbase.Client;
-var client = new Client({'apiKey': '___', 'apiSecret': '___'});
+var client = new Client({'apiKey': '_____', 'apiSecret': '_____'});
 var moment = require("moment");
 var https = require('https');
 
-var accountIDs = [___,____]
+Date.prototype.addDays = function(days) {
+  var date = new Date(this.valueOf());
+  date.setDate(date.getDate() + days);
+  return date;
+}
 
-// var accountIDs = []
-//
-// client.getAccounts({}, (err, accounts) => {
-//   if (err) console.log(err)
-//   accounts.forEach((acct) => {
-//     client.getAccount(acct.id, function(err, account) {
-//       accountIDs.push({'currency': account.balance.currency, 'id': account.id})
-//       // accountIDs[account.balance.currency] = account.id
-//       // console.log('currency: ', account.balance.currency, 'id: ',account.id);
-//       console.log(accountIDs)
-//     });
-//     // console.log(accountIDs)
-//   })
-// });
-// // console.log(accountIDs)
-
-
+var arrayContains = (string, array) => {
+    return (array.indexOf(string) > -1);
+}
 
 var bal = [];
+var accountIDs = [];
+var currencies = ['BTC', 'ETH', 'LTC', 'BCH'];
+
 // given ID retrieve transactions
 var getTxs = id => {
   // async stuff https://stackoverflow.com/questions/14220321/how-do-i-return-the-response-from-an-asynchronous-call
@@ -93,12 +86,6 @@ var updateReceive = (date, amount, coin) => {
   })
 }
 
-Date.prototype.addDays = function(days) {
-  var date = new Date(this.valueOf());
-  date.setDate(date.getDate() + days);
-  return date;
-}
-
 var getDates = (startDate, stopDate) => {
   var result = new Array();
   var currentDate = startDate;
@@ -109,16 +96,29 @@ var getDates = (startDate, stopDate) => {
   return result;
 }
 
-
 // given an account ID, update bal
-var pAndL = currency => {
+var pAndL = (currency, accountIDs) => {
+
   var id = '';
 
-  // get account ID given desired currency
-  if (currency == 'BTC') {
-     id = accountIDs[0]
-  } else if (currency == 'ETH') {
-    id = accountIDs[1]
+  // get account ID given desired currency, format: 4 element array of objects {currency, id}
+  switch (currency) {
+    case "BCH":
+      console.log("BCH confirmed");
+      id = accountIDs[0].id;
+      break;
+    case "BTC":
+      console.log("BTC confirmed");
+      id = accountIDs[1].id;
+      break;
+    case "LTC":
+      console.log("LTC confirmed");
+      id = accountIDs[2].id;
+      break;
+    case "ETH":
+      console.log("ETH confirmed");
+      id = accountIDs[3].id;
+      break;
   }
 
   console.log(id)
@@ -186,9 +186,11 @@ var pAndL = currency => {
               res.on("end", () => {
                 // eth prices in terms of BTC, 4 hour intervals
                 body = JSON.parse(body);
+                // console.log(body.length)
                 // console.log(dates.length)
 
-                for (var i = 0; i<=dates.length-1; i++) {
+                for (var i = 0; i<=dates.length-2; i++) {
+                  // console.log(i)
                   // console.log('i',i,'date', body[i].date, 'BTC_ETH', body[i].close, "BTC price", BTC_prices[i], "ETH_USD", body[i].close * BTC_prices[i])
                   bal.push({'date': dates[i], 'price': body[i].close * BTC_prices[i], 'coin_bal': 0, 'currency_in': 0, 'currency_out': 0});
                 }
@@ -236,8 +238,6 @@ var pAndL = currency => {
   })
 }
 
-
-
 var dataReformat = (data) => {
   // array of objects with 5 keys to 2 arrays
   var series1 = data.map((entry)=>{
@@ -248,10 +248,24 @@ var dataReformat = (data) => {
     return [parseInt(moment.utc(entry.date).format('x')), entry.currency_out - entry.currency_in ]
   })
   var series3 = data.map((entry)=>{
+    console.log(entry.price*entry.coin_bal)
     return [parseInt(moment.utc(entry.date).format('x')), entry.coin_bal *  entry.price]
   })
   return [series1, series2, series3]
 }
+
+var getAccounts = new Promise((resolve, reject) => {
+  var accountIDs = []
+  client.getAccounts({}, (err, accounts) => {
+    if (err) console.log(err)
+    accounts.forEach((acct) => {
+      client.getAccount(acct.id, function(err, account) {
+        accountIDs.push({'currency': account.balance.currency, 'id': account.id})
+      });
+    })
+    resolve(accountIDs);
+  })
+})
 
 var app = express();
 
@@ -261,35 +275,29 @@ app.use(bodyParser.json())
 app.set('views', __dirname + '/views');
 app.set('view engine', 'ejs');
 
-app.get('/', async (req, res, next) => {
-  try {
-    const data = await pAndL('BTC');
-    const input = dataReformat(data)
-    res.render('home', {
-      series1: JSON.stringify(input[0]),
-      series2: JSON.stringify(input[1]),
-      series3: JSON.stringify(input[2])
-    });
-  } catch (e) {
-    console.log("error")
-  }
+app.get('/', async (req, res) => {
+  getAccounts.then((results)=>{accountIDs = results});
+  res.render('home');
 })
 
 app.post('/', async (req, res) => {
-  try {
-    console.log(req.body);
-    if (req.body.currency=="ETH"){
-      const data = await pAndL('ETH');
-      const input = dataReformat(data)
-      res.render('home', {
-        series1: JSON.stringify(input[0]),
-        series2: JSON.stringify(input[1]),
-        series3: JSON.stringify(input[2])
-      });
+    console.log(accountIDs)
+    try {
+      console.log(req.body);
+      if (arrayContains(req.body.currency, currencies)){
+        console.log('yes: ', req.body.currency)
+        const data = await pAndL(req.boy.currency);
+        const input = dataReformat(data)
+        res.render('viz', {
+          series1: JSON.stringify(input[0]),
+          series2: JSON.stringify(input[1]),
+          series3: JSON.stringify(input[2])
+        });
+      }
+      else {console.log(`${req.body.currency} not in ${currencies}`)}
+    } catch (e) {
+      console.log("error")
     }
-  } catch (e) {
-    console.log("error")
-  }
 })
 
 
